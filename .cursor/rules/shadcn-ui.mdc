@@ -1,0 +1,36 @@
+---
+alwaysApply: true
+---
+# shadcn/ui Component Library
+
+This project uses **shadcn/ui** for all UI elements. Do not use other component libraries or write raw HTML/CSS components when a shadcn/ui equivalent exists.
+
+## Initialization
+
+If shadcn/ui is not yet initialized in the project, run:
+
+```bash
+npx shadcn@latest init
+```
+
+## Adding Components
+
+If a required component is not installed, add it before using it:
+
+```bash
+npx shadcn@latest add <component-name>
+```
+
+Examples:
+```bash
+npx shadcn@latest add button
+npx shadcn@latest add input
+npx shadcn@latest add dialog
+```
+
+## Rules
+
+- Always check `components/ui/` before assuming a component is available.
+- Import components from `@/components/ui/<component>`.
+- Prefer composing shadcn/ui primitives over building custom alternatives.
+- Run the `add` command for any component not yet present in `components/ui/`.
