@@ -1,0 +1,95 @@
+---
+alwaysApply: true
+---
+# Data Access & Mutation Patterns
+
+## Data Retrieval — Server Components only
+
+All data fetching must happen inside **React Server Components**. Never fetch data in Client Components, route handlers, or via `useEffect`.
+
+```typescript
+// ✅ GOOD — fetch inside a Server Component
+// app/decks/page.tsx
+import { db } from '@/db';
+import { decks } from '@/db/schema';
+import { auth } from '@clerk/nextjs/server';
+import { eq } from 'drizzle-orm';
+
+export default async function DecksPage() {
+  const { userId } = await auth();
+  if (!userId) redirect('/sign-in');
+
+  const userDecks = await db.select().from(decks).where(eq(decks.clerkUserId, userId));
+  return <DeckList decks={userDecks} />;
+}
+
+// ❌ BAD — fetching in a Client Component
+'use client';
+useEffect(() => {
+  fetch('/api/decks').then(...);
+}, []);
+```
+
+## Mutations — Server Actions only
+
+All `INSERT`, `UPDATE`, and `DELETE` operations must be performed inside **Server Actions**. Never mutate the database from a Client Component directly or via API route handlers.
+
+```typescript
+// ✅ GOOD — mutation in a Server Action
+'use server';
+import { db } from '@/db';
+import { decks } from '@/db/schema';
+import { auth } from '@clerk/nextjs/server';
+
+export async function createDeck(input: CreateDeckInput) {
+  const { userId } = await auth();
+  if (!userId) throw new Error('Unauthenticated');
+  // ...validate, then insert
+  await db.insert(decks).values({ clerkUserId: userId, ...input });
+}
+
+// ❌ BAD — mutation inside an API route or client fetch
+export async function POST(req: Request) {
+  const body = await req.json();
+  await db.insert(decks).values(body);
+}
+```
+
+## Validation — Zod required for all Server Actions
+
+Every Server Action **must** validate its inputs with a **Zod schema** before touching the database. Never trust raw client input.
+
+## Typed inputs — no `FormData`
+
+Server Action parameters must be typed with a **TypeScript type or interface** derived from a Zod schema. Never use `FormData` as the parameter type.
+
+```typescript
+// ✅ GOOD
+import { z } from 'zod';
+
+const CreateDeckSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+});
+
+type CreateDeckInput = z.infer<typeof CreateDeckSchema>;
+
+export async function createDeck(input: CreateDeckInput) {
+  const parsed = CreateDeckSchema.safeParse(input);
+  if (!parsed.success) throw new Error('Invalid input');
+  // proceed with parsed.data
+}
+
+// ❌ BAD — untyped / unvalidated
+export async function createDeck(formData: FormData) {
+  const name = formData.get('name');
+  await db.insert(decks).values({ name });
+}
+```
+
+## Rules summary
+
+- **Read** data only in Server Components.
+- **Write** data only in Server Actions (`'use server'`).
+- **Validate** every Server Action input with Zod before any DB call.
+- **Type** every Server Action parameter with a TypeScript type (`z.infer<typeof Schema>`), never `FormData`.

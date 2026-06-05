@@ -1,0 +1,45 @@
+---
+alwaysApply: true
+---
+# Database: Always Use Drizzle ORM
+
+All database interactions must go through Drizzle ORM. Never use raw SQL strings, direct `pg` client queries, or any other ORM.
+
+## Schema
+
+Tables are defined in [src/db/schema.ts](mdc:src/db/schema.ts):
+
+- `decks` — belongs to a `clerkUserId`, has `name`, `description`, timestamps
+- `cards` — belongs to a `deckId` (cascades on delete), has `front`, `back`, timestamps
+
+The db client is exported from [src/db/index.ts](mdc:src/db/index.ts).
+
+## Query Patterns
+
+```typescript
+// ✅ GOOD — use drizzle query builder
+import { db } from '@/db';
+import { decks, cards } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+
+const userDecks = await db.select().from(decks).where(eq(decks.clerkUserId, userId));
+
+await db.insert(cards).values({ deckId, front, back });
+
+await db.update(decks).set({ name }).where(eq(decks.id, deckId));
+
+await db.delete(cards).where(eq(cards.id, cardId));
+```
+
+```typescript
+// ❌ BAD — never use raw SQL or other clients
+import { sql } from 'pg';
+const result = await sql`SELECT * FROM decks WHERE clerk_user_id = ${userId}`;
+```
+
+## Rules
+
+- Import table references only from `@/db/schema`
+- Import the db client only from `@/db`
+- Use `drizzle-orm` helpers (`eq`, `and`, `or`, `inArray`, etc.) for conditions
+- Never bypass Drizzle with raw queries or a separate database client

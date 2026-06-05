@@ -1,0 +1,64 @@
+---
+alwaysApply: true
+---
+# Clerk Auth & Data Ownership
+
+All authentication is handled by Clerk. Every server-side data access **must** be scoped to the authenticated user. Never return, modify, or delete data that belongs to another user.
+
+## Get the current user
+
+```typescript
+import { auth } from '@clerk/nextjs/server';
+
+const { userId } = await auth();
+if (!userId) throw new Error('Unauthenticated'); // or redirect to sign-in
+```
+
+## Querying decks
+
+`decks` rows carry a `clerkUserId` column. Always filter by it.
+
+```typescript
+// ✅ GOOD
+const userDecks = await db.select().from(decks).where(eq(decks.clerkUserId, userId));
+
+// ❌ BAD — returns every user's decks
+const allDecks = await db.select().from(decks);
+```
+
+## Querying cards
+
+`cards` have no direct `clerkUserId`; they belong to a deck. Verify deck ownership before accessing cards.
+
+```typescript
+// ✅ GOOD — join through the owned deck
+const userCards = await db
+  .select({ card: cards })
+  .from(cards)
+  .innerJoin(decks, eq(cards.deckId, decks.id))
+  .where(and(eq(decks.clerkUserId, userId), eq(decks.id, deckId)));
+
+// ❌ BAD — fetches cards without verifying ownership
+const allCards = await db.select().from(cards).where(eq(cards.deckId, deckId));
+```
+
+## Mutations (update / delete)
+
+Always scope writes to the authenticated user. For `cards`, join through `decks`.
+
+```typescript
+// ✅ Update a deck — only if it belongs to the user
+await db.update(decks).set({ name }).where(and(eq(decks.id, deckId), eq(decks.clerkUserId, userId)));
+
+// ✅ Delete a card — verify parent deck ownership first
+const [ownerDeck] = await db.select().from(decks).where(and(eq(decks.id, deckId), eq(decks.clerkUserId, userId)));
+if (!ownerDeck) throw new Error('Forbidden');
+await db.delete(cards).where(eq(cards.id, cardId));
+```
+
+## Rules
+
+- Call `auth()` at the top of every Server Action and Route Handler.
+- Return `403`/throw before touching the database if `userId` is null.
+- Never trust client-supplied IDs alone — always cross-check against `clerkUserId`.
+- Never expose raw database rows in responses without first verifying ownership.
