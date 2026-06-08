@@ -1,9 +1,11 @@
 ---
 alwaysApply: true
 ---
-# shadcn/ui Component Library
+# shadcn/ui Component Library — MANDATORY
 
-This project uses **shadcn/ui** for all UI elements. Do not use other component libraries or write raw HTML/CSS components when a shadcn/ui equivalent exists.
+This project uses **shadcn/ui** as the **sole** UI component library. This is non-negotiable.
+
+> **ZERO custom UI components.** Do not write custom HTML elements, raw CSS components, inline styles, or Tailwind utility soup that recreates a component shadcn/ui already provides. If shadcn/ui has it, use it — no exceptions.
 
 ## Initialization
 
@@ -15,7 +17,7 @@ npx shadcn@latest init
 
 ## Adding Components
 
-If a required component is not installed, add it before using it:
+If a required component is not yet installed, add it before using it:
 
 ```bash
 npx shadcn@latest add <component-name>
@@ -28,9 +30,43 @@ npx shadcn@latest add input
 npx shadcn@latest add dialog
 ```
 
-## Rules
+## Clerk Authentication UI
 
+All Clerk sign-in and sign-up entry points **must** follow these rules:
+
+1. **Use shadcn/ui `<Button>`** — never render Clerk's built-in `<SignInButton>` or `<SignUpButton>` with custom HTML. Wrap them so the trigger is always a shadcn/ui `<Button>`.
+2. **Modal mode only** — Clerk must be configured to open sign-in and sign-up inside a modal, never as a full-page redirect or an embedded inline form. Pass `mode="modal"` to `<SignInButton>` and `<SignUpButton>`.
+
+```tsx
+// ✅ CORRECT — shadcn Button trigger + modal mode
+import { SignInButton, SignUpButton } from '@clerk/nextjs';
+import { Button } from '@/components/ui/button';
+
+<SignInButton mode="modal">
+  <Button variant="outline">Sign in</Button>
+</SignInButton>
+
+<SignUpButton mode="modal">
+  <Button>Get started</Button>
+</SignUpButton>
+
+// ❌ WRONG — raw HTML trigger
+<SignInButton>
+  <button className="my-custom-btn">Sign in</button>
+</SignInButton>
+
+// ❌ WRONG — full-page redirect (no mode prop or mode="redirect")
+<SignInButton mode="redirect">
+  <Button>Sign in</Button>
+</SignInButton>
+```
+
+## Hard Rules
+
+- **No custom components.** Never create a bespoke button, input, card, dialog, badge, avatar, dropdown, or any other element that duplicates shadcn/ui functionality.
+- **No raw HTML for UI.** `<div>`, `<button>`, `<input>`, etc. are only acceptable inside shadcn/ui component implementations themselves — never in application code where a shadcn/ui primitive exists.
+- **No other component libraries.** Do not install or use MUI, Chakra, Radix primitives directly, Headless UI, Ant Design, or any other UI library alongside shadcn/ui.
 - Always check `components/ui/` before assuming a component is available.
 - Import components from `@/components/ui/<component>`.
-- Prefer composing shadcn/ui primitives over building custom alternatives.
 - Run the `add` command for any component not yet present in `components/ui/`.
+- This project is in dark mode so make sure there are no dark colored text on dark backgrounds (and vice versa).
