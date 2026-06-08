@@ -9,9 +9,10 @@ All authentication is handled by Clerk. Every server-side data access **must** b
 
 ```typescript
 import { auth } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
 
 const { userId } = await auth();
-if (!userId) throw new Error('Unauthenticated'); // or redirect to sign-in
+if (!userId) redirect('/'); // no dedicated sign-in page — homepage has sign-in/sign-up buttons
 ```
 
 ## Querying decks
@@ -59,6 +60,6 @@ await db.delete(cards).where(eq(cards.id, cardId));
 ## Rules
 
 - Call `auth()` at the top of every Server Action and Route Handler.
-- Return `403`/throw before touching the database if `userId` is null.
+- Redirect to `/` (homepage) before touching the database if `userId` is null. The homepage is where sign-in/sign-up buttons live — there is no dedicated `/sign-in` page.
 - Never trust client-supplied IDs alone — always cross-check against `clerkUserId`.
 - Never expose raw database rows in responses without first verifying ownership.

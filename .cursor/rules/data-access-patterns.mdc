@@ -14,10 +14,11 @@ import { db } from '@/db';
 import { decks } from '@/db/schema';
 import { auth } from '@clerk/nextjs/server';
 import { eq } from 'drizzle-orm';
+import { redirect } from 'next/navigation';
 
 export default async function DecksPage() {
   const { userId } = await auth();
-  if (!userId) redirect('/sign-in');
+  if (!userId) redirect('/'); // no dedicated sign-in page — homepage has sign-in/sign-up buttons
 
   const userDecks = await db.select().from(decks).where(eq(decks.clerkUserId, userId));
   return <DeckList decks={userDecks} />;
